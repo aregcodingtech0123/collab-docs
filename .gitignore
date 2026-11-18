@@ -46,3 +46,6 @@ next-env.d.ts
 # editor / OS
 Thumbs.db
 .idea/
+
+# e2e screenshots
+/e2e-output/
