@@ -14,7 +14,8 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
     "e2e:api": "node scripts/e2e/api.mjs",
-    "e2e:browser": "node scripts/e2e/browser.mjs"
+    "e2e:browser": "node scripts/e2e/browser.mjs",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",

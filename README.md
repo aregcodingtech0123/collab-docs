@@ -41,11 +41,16 @@ and a free [Neon](https://neon.com) Postgres database (the app uses Neon's HTTP 
 
 1. **Create a Neon database.** In the Neon console create a free project, open **Connect** and copy the connection string
    (`postgresql://…`). The pooled one (hostname contains `-pooler`) is fine.
-2. **Install and configure.**
+2. **Get the code, install and configure.**
 
    ```bash
+   git clone <repository-url> collab-docs
+   cd collab-docs
    npm install
    ```
+
+   `npm install` may print an `install-scripts` warning about `esbuild`. It is harmless: everything works without running
+   that script.
 
    Create `.env.local` from the template and put your connection string in it:
 
@@ -72,7 +77,8 @@ and a free [Neon](https://neon.com) Postgres database (the app uses Neon's HTTP 
    npm run dev          # http://localhost:3000
    ```
 
-   or, as in production: `npm run build` then `npm start`.
+   or, as in production: `npm run build` then `npm start`. If port 3000 is busy, pick another one:
+   `npm run dev -- -p 3001` or `npm start -- -p 3001` (PowerShell: the same; the variable form is `$env:PORT = "3001"`).
 
 If `DATABASE_URL` is missing the app starts, but pages that need the database show a generic error and the server log says
 exactly what is missing.
@@ -82,7 +88,7 @@ exactly what is missing.
 ```bash
 npm test             # unit tests (Vitest): permissions, validation, import, autosave, sharing, ...
 npm run lint         # ESLint (src, tests, scripts, config files)
-npx tsc --noEmit     # type check
+npm run typecheck    # generates Next's route types, then runs tsc --noEmit
 npm run build        # production build (does not need a database)
 ```
 
@@ -206,6 +212,7 @@ Malformed input never produces a 5xx (covered by the fuzz suite).
 | `npm run build`         | Production build (no database needed)                          |
 | `npm start`             | Run the production build                                       |
 | `npm run lint`          | ESLint                                                         |
+| `npm run typecheck`     | Generate Next's route types, then `tsc --noEmit`               |
 | `npm test`              | Unit tests once (Vitest)                                       |
 | `npm run test:watch`    | Vitest in watch mode                                           |
 | `npm run e2e:api`       | API end-to-end suites (needs a running server)                 |
