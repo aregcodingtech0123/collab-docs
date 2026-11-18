@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { SHARE_PERMISSIONS } from "@/types";
 import { ApiError } from "@/lib/errors";
+import { MAX_CONTENT_DEPTH, inspectJson, isUnstorableText } from "@/lib/jsonSafety";
 import { MAX_TITLE_LENGTH } from "@/lib/title";
 
 export { MAX_TITLE_LENGTH };
@@ -15,7 +16,8 @@ export const titleSchema = z
   .string("title must be a string")
   .trim()
   .min(1, "title must not be empty")
-  .max(MAX_TITLE_LENGTH, `title must be at most ${MAX_TITLE_LENGTH} characters`);
+  .max(MAX_TITLE_LENGTH, `title must be at most ${MAX_TITLE_LENGTH} characters`)
+  .refine((title) => !isUnstorableText(title), "title contains characters that cannot be used");
 
 export const emailSchema = z
   .string("email must be a string")
@@ -38,8 +40,20 @@ export const tiptapDocSchema = z
       .array(z.looseObject({ type: z.string("each content node needs a string type") }))
       .min(1, "content must contain at least one node"),
   })
-  .refine((doc) => new TextEncoder().encode(JSON.stringify(doc)).length <= MAX_CONTENT_BYTES, {
-    message: `content is too large (limit ${MAX_CONTENT_BYTES / 1024 / 1024} MB)`,
+  .superRefine((doc, ctx) => {
+    // Cheap structural safety first, so the (recursive) serialization below only ever sees sane input.
+    const found = inspectJson(doc);
+    if (found.tooDeep) {
+      ctx.addIssue({ code: "custom", message: `content is nested too deeply (limit ${MAX_CONTENT_DEPTH} levels)` });
+      return;
+    }
+    if (found.unstorableText) {
+      ctx.addIssue({ code: "custom", message: "content contains characters that cannot be stored" });
+      return;
+    }
+    if (new TextEncoder().encode(JSON.stringify(doc)).length > MAX_CONTENT_BYTES) {
+      ctx.addIssue({ code: "custom", message: `content is too large (limit ${MAX_CONTENT_BYTES / 1024 / 1024} MB)` });
+    }
   });
 
 export const loginSchema = z.object({ email: emailSchema });
