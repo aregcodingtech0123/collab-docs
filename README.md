@@ -5,6 +5,8 @@ rich text with autosave, import `.txt` / `.md` / `.docx` files, and share docume
 users as **viewer** or **editor**. Next.js + TipTap + Postgres (Neon); everything runs on free tiers.
 The database is on a free serverless tier, so the very first request after a period of inactivity can take a few seconds.
 
+**Live app:** https://collab-docs-tau.vercel.app/ (demo users, no passwords) · **Source:** https://github.com/aregcodingtech0123/collab-docs (private; also provided as a zip)
+
 - [Features](#features) · [Demo users](#demo-users) · [Setup](#setup) · [Running the tests](#running-the-tests) ·
   [Running the e2e suites](#running-the-e2e-suites) · [Deploying](#deploying-vercel--neon) ·
   [File import](#file-import) · [API](#api-overview) · [Known limitations](#known-limitations)
@@ -20,7 +22,7 @@ The database is on a free serverless tier, so the very first request after a per
 - **Roles, enforced on the server and reflected in the UI:** owners can do everything; editors can edit; viewers get a read-only editor with a "View only" badge; documents you cannot access show a "not found" page.
 - **Sharing:** owners get a **Share** button. The dialog lists who has access (change Viewer/Editor, or Remove), and adds people from a list or by typing an email. It updates in place, is keyboard accessible (focus is trapped, Esc closes, focus returns to the button) and shows readable errors.
 - **Import** a `.txt`, `.md` or `.docx` file as a new document ([details and limits](#file-import)).
-- Works on phones and tablets (checked at 390 px and 768 px), with visible keyboard focus.
+- Layouts checked in a desktop browser at 390 px (phone) and 768 px (tablet) widths; visible keyboard focus. I did not test on real devices.
 
 ## Demo users
 
@@ -37,18 +39,22 @@ header: the document is under "Shared with me" and read-only → switch back to 
 
 ## Setup
 
-**Requirements:** Node.js **22 LTS** recommended (20.12 or newer works; enforced by `engines`, see `.nvmrc`), npm,
-and a free [Neon](https://neon.com) Postgres database (the app uses Neon's HTTP driver, so a plain local Postgres will not work).
+**Requirements:** Node.js **22 LTS** recommended (`.nvmrc` says 22; `engines` requires 20.12 or newer because the scripts use
+`process.loadEnvFile`; I developed on Node 26 and did not run it on Node 20), npm, and a free [Neon](https://neon.com) Postgres
+database (the app uses Neon's HTTP driver, so a plain local Postgres will not work).
 
 1. **Create a Neon database.** In the Neon console create a free project, open **Connect** and copy the connection string
    (`postgresql://…`). The pooled one (hostname contains `-pooler`) is fine.
 2. **Get the code, install and configure.**
 
    ```bash
-   git clone <repository-url> collab-docs
+   git clone https://github.com/aregcodingtech0123/collab-docs.git collab-docs
    cd collab-docs
    npm install
    ```
+
+   The GitHub repository is private. The same source is also provided as `collab-docs-source.zip`: unzip it and run the
+   commands below inside the unzipped folder instead of cloning.
 
    `npm install` may print an `install-scripts` warning about `esbuild`. It is harmless: everything works without running
    that script.
@@ -103,7 +109,7 @@ Two optional end-to-end suites exercise the real app. **They are not part of `np
 
 1. The app is **running** (`npm run build && npm start`, or `npm run dev`) at `http://localhost:3000`, or pass another URL.
 2. The database is **seeded** (`npm run db:seed`) and `.env.local` is present (the suites re-seed afterwards).
-3. For the browser suite only: **Google Chrome or Microsoft Edge installed** (it uses `playwright-core` with your installed browser; nothing is downloaded).
+3. For the browser suite only: **Google Chrome or Microsoft Edge installed** (it uses `playwright-core` with your installed browser; nothing is downloaded). I have only run it with Edge.
 
 ```bash
 npm run e2e:api                              # HTTP only: auth, documents, shares, pages, import, malformed-input fuzz
@@ -123,7 +129,7 @@ Options (environment variables): `E2E_BASE_URL`, `E2E_ALLOW_REMOTE=1`, `E2E_HEAD
 `vercel.json` pins the function region to `fra1` (Frankfurt) because the Neon database is in `eu-central-1`; change both together
 if you use another region.
 
-1. **Neon:** use the project's default branch (new projects call it `production`) or create a dedicated branch for production.
+1. **Neon:** use the project's default branch (called `production` in my project) or create a dedicated branch for production.
    Copy that branch's connection string (**Connect** → pick the branch).
 2. **Vercel:** import the GitHub repository. Framework preset **Next.js** is detected. In **Project Settings → Environment
    Variables** add `DATABASE_URL` (Production, and Preview if you want previews to work) with the Neon connection string.
@@ -164,7 +170,7 @@ if you use another region.
 - [ ] Log out, then open `/documents`: you are sent to `/login`.
 - [ ] Vercel → **Logs** shows no errors; the deployment's functions run in `fra1`.
 
-Notes: the first request after the database has been idle can take a second or two (Neon free tier suspends idle databases).
+Notes: the first request after a period of inactivity can take a few seconds (the free Neon tier suspends idle databases).
 Vercel's Hobby plan caps request bodies at about 4.5 MB; the 2 MB import limit stays well under it.
 
 ## File import
@@ -176,9 +182,9 @@ Use **Import file** on the documents page, or `POST /api/documents/import` (mult
 - The new document is owned by you; its title is the file name without the extension (max 200 characters, "Imported document" if the name is empty).
 - Empty or whitespace-only files, binary files renamed to `.txt`/`.md`, and corrupt `.docx` files get a readable 400, never a server error.
 
-**What is imported:** paragraphs; Heading 1 and 2 (deeper headings become Heading 2); bold, italic, underline; bullet and numbered lists (nested ones included); line breaks. For `.txt`, a blank line starts a new paragraph and a single newline becomes a line break.
+**What is imported:** paragraphs; Heading 1 and 2 (deeper headings become Heading 2); bold, italic, underline; bullet and numbered lists (nested lists are tested for Markdown); line breaks. For `.txt`, a blank line starts a new paragraph and a single newline becomes a line break.
 
-**What is NOT imported:** images (including embedded ones and their alt text), tables (the cell text is kept as plain paragraphs), links (the link text is kept, the address is dropped), code blocks and inline code, block quotes, horizontal rules, strikethrough, text colour/size/fonts, comments, tracked changes, headers/footers and footnotes. HTML such as `<script>`, `<style>` or `<iframe>` inside a Markdown file is dropped, not executed or stored: the editor schema simply has no place for it (see [ARCHITECTURE.md](./ARCHITECTURE.md#file-import)).
+**What is NOT imported:** images (including embedded ones and their alt text), tables (the cell text is kept as plain paragraphs), links (the link text is kept, the address is dropped), code blocks and inline code, block quotes, horizontal rules, strikethrough, and text colour/size/fonts. Other Word features (comments, tracked changes, headers/footers, footnotes) are not specifically handled and I did not test them. HTML such as `<script>`, `<style>` or `<iframe>` inside a Markdown file is dropped, not executed or stored: the editor schema simply has no place for it (see [ARCHITECTURE.md](./ARCHITECTURE.md#file-import)).
 
 ## API overview
 
@@ -203,7 +209,7 @@ Authentication is the mock session cookie set by `POST /api/auth/login`.
 
 Status codes: `401` not signed in · `404` document missing **or** you have no access at all (existence is not leaked) ·
 `403` you can see it but lack the needed permission · `400` invalid input (the message says which field) · `413` uploaded file over 2 MB.
-Malformed input never produces a 5xx (covered by the fuzz suite).
+A fuzz suite (281 malformed requests) found no remaining case where bad input produces a 5xx.
 
 ## Scripts
 
@@ -225,12 +231,15 @@ Malformed input never produces a 5xx (covered by the fuzz suite).
 
 ## Known limitations
 
-These are deliberate cuts for a time-boxed exercise; ARCHITECTURE.md explains each and what a production version would do.
+These are deliberate cuts for a time-boxed exercise; [ARCHITECTURE.md](./ARCHITECTURE.md#scope-cuts-and-trade-offs) lists them with what a production version would do.
 
-- **Mock authentication:** the "session" is a cookie holding a user id; anyone who knows an id can act as that user. There is no password, signature, CSRF token or rate limiting.
-- **No real-time collaboration, last write wins:** if two people edit the same document at once, the later save overwrites the earlier one. There is no merge and no version history.
-- **The editor is deliberately small:** only headings 1–2, bold, italic, underline and lists. Pasted or imported content that uses anything else (images, tables, links, code, …) loses that formatting.
-- **Import:** no images or tables; a crafted `.docx` that expands enormously when unzipped is not specifically guarded against (the 2 MB upload cap and Vercel's function limits are the backstop).
-- **Titles are single-line:** a very long title is clipped in the title field (it is shown truncated in lists).
-- **Neon free tier:** the first request after idle time is slower (the database wakes up).
-- **User directory:** the login page and the share dialog list every user's email, which is fine for three demo users but would not be in a real product.
+- **Mock authentication:** the "session" is a cookie holding a user id, so anyone who knows an id can act as that user. No password.
+- **Last write wins, no real-time collaboration:** if two people edit the same document at once, the later save overwrites the earlier one.
+- **No version history:** every save replaces the content; there is no restore.
+- **Schema-restricted editor:** only headings 1–2, bold, italic, underline and lists. Pasted or imported content that uses anything else (images, tables, links, code, …) loses that formatting.
+- **Import limits:** 2 MB per file and about 1 MB of resulting text; no images or tables. There is no zip-bomb guard on `.docx` files (the 2 MB cap and Vercel's function limits are the only backstop).
+- **No CSRF token and no rate limiting** (`SameSite=Lax` is the only CSRF protection).
+- **Whole user directory visible:** the login page and the share dialog list every user's email. Fine for three demo users, not for a real product.
+- **Single-line title field:** a very long title is clipped in the field (it is truncated in lists).
+- **Free-tier cold start:** the first request after a period of inactivity can take a few seconds.
+- **Tested only in Edge** (desktop), not in Firefox or Safari, on real phones, or with a screen reader.
