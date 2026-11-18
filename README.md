@@ -3,6 +3,7 @@
 A lightweight, Google Docs–inspired document editor. Sign in as one of three demo users, write
 rich text with autosave, import `.txt` / `.md` / `.docx` files, and share documents with other
 users as **viewer** or **editor**. Next.js + TipTap + Postgres (Neon); everything runs on free tiers.
+The database is on a free serverless tier, so the very first request after a period of inactivity can take a few seconds.
 
 - [Features](#features) · [Demo users](#demo-users) · [Setup](#setup) · [Running the tests](#running-the-tests) ·
   [Running the e2e suites](#running-the-e2e-suites) · [Deploying](#deploying-vercel--neon) ·
