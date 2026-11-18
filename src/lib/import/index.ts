@@ -1,22 +1,86 @@
-// Import entry point: picks a parser by file extension and enforces type/size limits.
-// TODO: implement importFile(); reject unsupported extensions, empty files and
-// files over MAX_IMPORT_BYTES with an ApiError (400/413).
+// Import entry point: picks a parser by file extension, enforces type/size limits,
+// and guarantees the result passes the same content validation as PATCH /api/documents/:id.
+// Every failure is an ApiError (400/413) with a readable message; nothing here should 500.
 
+import { ZodError } from "zod";
+import { ApiError, formatZodError } from "@/lib/errors";
+import { hasText } from "@/lib/import/html";
+import {
+  MAX_IMPORT_BYTES,
+  UNSUPPORTED_TYPE_MESSAGE,
+  extensionOf,
+  isSupportedExtension,
+  titleFromFilename,
+} from "@/lib/import/limits";
+import { parseDocx } from "@/lib/import/parseDocx";
+import { parseMarkdown } from "@/lib/import/parseMarkdown";
+import { parseTxt } from "@/lib/import/parseTxt";
+import { tiptapDocSchema } from "@/lib/validation";
 import type { TipTapDoc } from "@/types";
 
-export const SUPPORTED_EXTENSIONS = [".txt", ".md", ".docx"] as const;
-export type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number];
-
-/** Upload size cap. Vercel Hobby limits request bodies to ~4.5 MB. */
-export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+export * from "@/lib/import/limits";
 
 export interface ImportResult {
   title: string;
   content: TipTapDoc;
 }
 
-export async function importFile(file: File): Promise<ImportResult> {
-  void file;
-  // TODO: implement
-  throw new Error("importFile is not implemented yet");
+const EMPTY_MESSAGE = "The file is empty. Choose a file that contains some text.";
+const NO_TEXT_MESSAGE = "No importable text was found in this file.";
+const NOT_TEXT_MESSAGE = "This file doesn't look like a text file.";
+const BAD_DOCX_MESSAGE = "This .docx file couldn't be read. Make sure it's a valid Word document.";
+
+function decodeText(data: Uint8Array): string {
+  // A NUL byte means binary data (e.g. a renamed image), not text.
+  if (data.includes(0)) throw new ApiError(400, "not_text", NOT_TEXT_MESSAGE);
+  return new TextDecoder("utf-8").decode(data).replace(/^﻿/, ""); // lenient; strips a BOM
+}
+
+export async function parseImport(filename: string, data: Uint8Array): Promise<ImportResult> {
+  const ext = extensionOf(filename);
+  if (!isSupportedExtension(ext)) {
+    throw new ApiError(400, "unsupported_file_type", UNSUPPORTED_TYPE_MESSAGE);
+  }
+  if (data.byteLength === 0) throw new ApiError(400, "empty_file", EMPTY_MESSAGE);
+  if (data.byteLength > MAX_IMPORT_BYTES) {
+    throw new ApiError(413, "file_too_large", "This file is too large. The limit is 2 MB.");
+  }
+
+  let content: TipTapDoc;
+  switch (ext) {
+    case ".txt": {
+      const text = decodeText(data);
+      if (text.trim() === "") throw new ApiError(400, "empty_file", EMPTY_MESSAGE);
+      content = parseTxt(text);
+      break;
+    }
+    case ".md": {
+      const text = decodeText(data);
+      if (text.trim() === "") throw new ApiError(400, "empty_file", EMPTY_MESSAGE);
+      content = parseMarkdown(text);
+      break;
+    }
+    case ".docx": {
+      try {
+        content = await parseDocx(data);
+      } catch {
+        throw new ApiError(400, "invalid_docx", BAD_DOCX_MESSAGE);
+      }
+      break;
+    }
+  }
+
+  // Parsing can leave nothing behind, e.g. a markdown file that is only an image.
+  if (!hasText(content)) throw new ApiError(400, "no_text", NO_TEXT_MESSAGE);
+
+  try {
+    content = tiptapDocSchema.parse(content) as unknown as TipTapDoc;
+  } catch (err) {
+    if (err instanceof ZodError) {
+      throw new ApiError(400, "invalid_content", `This file can't be imported: ${formatZodError(err)}.`);
+    }
+    throw err;
+  }
+
+  return { title: titleFromFilename(filename), content };
 }

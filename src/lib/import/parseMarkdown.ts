@@ -1,10 +1,12 @@
-// .md -> TipTap JSON.
-// TODO: marked -> HTML (sanitised) -> generateJSON() with the shared extensions.
+// .md -> TipTap JSON: marked -> HTML -> shared TipTap schema (see html.ts).
+// Raw HTML inside the markdown is passed through by marked on purpose; the schema
+// is what removes everything unsupported.
 
+import { marked } from "marked";
+import { htmlToDoc } from "@/lib/import/html";
 import type { TipTapDoc } from "@/types";
 
-export async function parseMarkdown(markdown: string): Promise<TipTapDoc> {
-  void markdown;
-  // TODO: implement
-  throw new Error("parseMarkdown is not implemented yet");
+export function parseMarkdown(markdown: string): TipTapDoc {
+  const html = marked.parse(markdown, { async: false, gfm: true });
+  return htmlToDoc(html);
 }
