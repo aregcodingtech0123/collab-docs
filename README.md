@@ -32,13 +32,59 @@ through the `engines` field in `package.json`.
 
 ```bash
 npm install
-cp .env.example .env.local   # then set DATABASE_URL (a free Neon database)
-npm run db:push              # create tables (or: db:generate + db:migrate)
-npm run db:seed              # seed alice, bob, carol + sample docs (TODO: not implemented yet)
+cp .env.example .env.local   # then put your DATABASE_URL in .env.local (see below)
+npm run db:migrate           # create the tables
+npm run db:seed              # seed alice, bob, carol + sample documents
 npm run dev                  # http://localhost:3000
 ```
 
-TODO: how to get a Neon connection string (link to Neon free tier steps).
+### Database (Neon, free tier)
+
+1. Create a free project at [neon.com](https://neon.com) and copy its connection string
+   (Dashboard → **Connect**). The pooled one (hostname contains `-pooler`) is fine.
+2. Put it in `.env.local` as `DATABASE_URL=postgresql://...`. `.env.local` is git-ignored;
+   never put the real value in `.env.example`, which is committed and must stay `DATABASE_URL=`.
+3. `npm run db:migrate` applies the SQL in `drizzle/`. (`npm run db:push` also works for a
+   throwaway database.)
+4. `npm run db:seed` is idempotent: run it again at any time to reset the sample documents
+   and their shares to their original state.
+
+The app uses the `@neondatabase/serverless` HTTP driver, so it needs a Neon database
+(a plain local Postgres will not work with it).
+
+### Seeded users
+
+There are no passwords. The login page lists the users; pick one.
+
+| User  | Email               | Seeded documents                                                          |
+| ----- | ------------------- | ------------------------------------------------------------------------- |
+| Alice | `alice@example.com` | owns "Welcome to Collab Docs" (shared with Bob as **editor**); **viewer** on Carol's plan |
+| Bob   | `bob@example.com`   | owns "Bob's meeting notes" (private); **editor** on "Welcome to Collab Docs" |
+| Carol | `carol@example.com` | owns "Carol's project plan" (shared with Alice as **viewer**)             |
+
+## API overview
+
+All endpoints return JSON. Errors look like `{ "error": { "code": "...", "message": "..." } }`.
+Authentication is the mock session cookie set by `POST /api/auth/login`.
+
+| Method & path                          | What it does                                             | Who             |
+| -------------------------------------- | -------------------------------------------------------- | --------------- |
+| `POST /api/auth/login` `{ email }`     | Sign in as an existing user (sets cookie)                | anyone          |
+| `POST /api/auth/logout`                | Clear the cookie                                         | anyone          |
+| `GET /api/auth/me`                     | Current user                                             | signed in       |
+| `GET /api/users`                       | All users (id, name, email), for the share dialog        | signed in       |
+| `GET /api/documents`                   | `{ owned, shared }`, newest first, no content            | signed in       |
+| `POST /api/documents` `{ title? }`     | Create a document (201)                                  | signed in       |
+| `GET /api/documents/:id`               | Document with content + your `role`                      | owner/editor/viewer |
+| `PATCH /api/documents/:id` `{ title?, content? }` | Rename and/or save content (content ≤ 1 MB)   | owner/editor    |
+| `DELETE /api/documents/:id`            | Delete (204); shares are removed too                     | owner           |
+| `GET /api/documents/:id/shares`        | Who the document is shared with                          | owner           |
+| `POST /api/documents/:id/shares` `{ email, permission }` | Share, or change an existing share (`viewer` / `editor`) | owner  |
+| `DELETE /api/documents/:id/shares` `{ userId }` | Remove a share (204)                            | owner           |
+
+Status codes: `401` not signed in · `404` document missing **or** you have no access at all
+(existence is not leaked) · `403` you can see it but lack the needed permission · `400` invalid
+input (the message says which field) · `501` endpoints not built yet (`/api/documents/import`).
 
 ## Scripts
 
