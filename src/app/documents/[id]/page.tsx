@@ -63,6 +63,7 @@ export default async function DocumentPage({ params }: PageProps<"/documents/[id
         title={document.title}
         initialContent={content}
         role={role}
+        ownerId={document.ownerId}
         ownerName={document.owner.name}
         isOwner={document.ownerId === user.id}
       />

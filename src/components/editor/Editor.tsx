@@ -6,6 +6,7 @@
 import { EditorContent, useEditor, type Editor as TipTapEditor } from "@tiptap/react";
 import { useEffect, useRef } from "react";
 import RenameTitle from "@/components/documents/RenameTitle";
+import ShareDialog from "@/components/documents/ShareDialog";
 import SaveStatus from "@/components/editor/SaveStatus";
 import Toolbar from "@/components/editor/Toolbar";
 import { useAutosave } from "@/components/editor/useAutosave";
@@ -18,6 +19,7 @@ export interface EditorProps {
   title: string;
   initialContent: TipTapDoc;
   role: Exclude<Role, "none">;
+  ownerId: string;
   ownerName: string;
   /** Whether the current user is the owner (for "Owned by you"). */
   isOwner: boolean;
@@ -29,7 +31,7 @@ const ROLE_LABEL: Record<EditorProps["role"], { label: string; tone: BadgeTone }
   viewer: { label: "View only", tone: "amber" },
 };
 
-export default function Editor({ documentId, title, initialContent, role, ownerName, isOwner }: EditorProps) {
+export default function Editor({ documentId, title, initialContent, role, ownerId, ownerName, isOwner }: EditorProps) {
   const editable = role !== "viewer";
   const editorRef = useRef<TipTapEditor | null>(null);
 
@@ -69,7 +71,13 @@ export default function Editor({ documentId, title, initialContent, role, ownerN
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       <div className="mb-4">
-        <RenameTitle documentId={documentId} title={title} editable={editable} />
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <RenameTitle documentId={documentId} title={title} editable={editable} />
+          </div>
+          {/* Only the owner can manage sharing; editors and viewers never see this. */}
+          {role === "owner" && <ShareDialog documentId={documentId} ownerId={ownerId} />}
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
           <Badge tone={roleBadge.tone}>{roleBadge.label}</Badge>
           <span>{isOwner ? "Owned by you" : `Owner: ${ownerName}`}</span>
