@@ -17,9 +17,14 @@ export interface DialogProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /**
+   * When false, Esc, the backdrop and the × button do nothing (use while a request is in
+   * flight so the result cannot be missed). Default true.
+   */
+  dismissible?: boolean;
 }
 
-export default function Dialog({ open, onClose, title, children }: DialogProps) {
+export default function Dialog({ open, onClose, title, children, dismissible = true }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -77,10 +82,13 @@ export default function Dialog({ open, onClose, title, children }: DialogProps) 
       ref={dialogRef}
       aria-labelledby={titleId}
       onClose={handleClose}
+      onCancel={(e) => {
+        if (!dismissible) e.preventDefault(); // Esc
+      }}
       onKeyDown={trapTab}
       onClick={(e) => {
         // A click on the backdrop lands on the <dialog> element itself, not on its content.
-        if (e.target === e.currentTarget) e.currentTarget.close();
+        if (dismissible && e.target === e.currentTarget) e.currentTarget.close();
       }}
       className="m-auto max-h-[85vh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border-0 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/40"
     >
@@ -93,8 +101,9 @@ export default function Dialog({ open, onClose, title, children }: DialogProps) 
             <button
               type="button"
               aria-label="Close"
+              disabled={!dismissible}
               onClick={() => dialogRef.current?.close()}
-              className="-m-1 rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-blue-600"
+              className="-m-1 rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-40"
             >
               <span aria-hidden="true" className="block h-5 w-5 text-center text-xl leading-5">
                 ×

@@ -57,7 +57,7 @@ export default function ImportButton() {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-start gap-1 sm:items-end">
       <input
         ref={inputRef}
         type="file"
@@ -73,11 +73,11 @@ export default function ImportButton() {
       <Button onClick={() => inputRef.current?.click()} disabled={pending} aria-describedby="import-help">
         {pending ? "Importing…" : "Import file"}
       </Button>
-      <p id="import-help" className="text-xs text-zinc-500">
+      <p id="import-help" className="max-w-[16rem] text-xs text-zinc-500 sm:text-right">
         {IMPORT_LIMITS_TEXT}
       </p>
       {error && (
-        <p role="alert" className="max-w-xs text-right text-sm text-red-600">
+        <p role="alert" className="max-w-xs text-sm text-red-600 sm:text-right">
           {error}
         </p>
       )}

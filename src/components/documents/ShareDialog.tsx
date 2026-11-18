@@ -282,7 +282,9 @@ export default function ShareDialog({ documentId, ownerId }: { documentId: strin
                   setPick(""); // typing replaces the dropdown choice
                   setFormError(null);
                 }}
-                className="min-w-0 flex-1 rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:opacity-60"
+                // Full-width row on phones, so the address is readable; shares a row with the
+                // permission select and the button from the "sm" breakpoint up.
+                className="min-w-0 basis-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:opacity-60 sm:flex-1 sm:basis-auto"
               />
               <select
                 aria-label="Permission for the new person"

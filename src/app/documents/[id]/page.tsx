@@ -44,8 +44,8 @@ const load = cache(async (rawId: string): Promise<Loaded> => {
 export async function generateMetadata({ params }: PageProps<"/documents/[id]">): Promise<Metadata> {
   const { id } = await params;
   const result = await load(id);
-  if (result.state === "ok") return { title: `${result.document.title} · Collab Docs` };
-  return { title: "Document not found · Collab Docs" };
+  if (result.state === "ok") return { title: result.document.title };
+  return { title: "Document not found" };
 }
 
 export default async function DocumentPage({ params }: PageProps<"/documents/[id]">) {

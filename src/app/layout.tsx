@@ -15,7 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Collab Docs",
+  // Pages set a short title ("Documents", a document's name, ...); the template adds the app name.
+  title: { default: "Collab Docs", template: "%s · Collab Docs" },
   description: "A lightweight collaborative document editor",
 };
 

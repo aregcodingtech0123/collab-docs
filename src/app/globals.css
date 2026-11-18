@@ -159,3 +159,20 @@ body {
   height: 0;
   pointer-events: none;
 }
+
+/*
+ * One visible keyboard-focus ring for everything interactive (buttons, links, toolbar buttons,
+ * inputs, selects). :where() keeps the specificity at zero so components can still opt out.
+ * Unlayered, so it also wins over Tailwind's `outline-none` utilities, which would otherwise
+ * remove the ring from the title input.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* The editor shows a caret instead of a ring, and the dialog title only receives programmatic focus. */
+.ProseMirror:focus-visible,
+[tabindex="-1"]:focus-visible {
+  outline: none;
+}

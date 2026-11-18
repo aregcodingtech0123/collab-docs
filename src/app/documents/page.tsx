@@ -7,7 +7,7 @@ import NewDocumentButton from "@/components/documents/NewDocumentButton";
 import { requireUserOrRedirect } from "@/lib/auth";
 import { listDocuments } from "@/lib/documents";
 
-export const metadata = { title: "Documents · Collab Docs" };
+export const metadata = { title: "Documents" };
 
 export default async function DocumentsPage() {
   const user = await requireUserOrRedirect();
@@ -17,7 +17,7 @@ export default async function DocumentsPage() {
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl font-semibold">Documents</h1>
-        <div className="flex items-start gap-2">
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
           <ImportButton />
           <NewDocumentButton />
         </div>
