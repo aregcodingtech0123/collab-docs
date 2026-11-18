@@ -6,14 +6,19 @@
 
 ## Features
 
-TODO — what is implemented. Planned:
+**Working now**
 
-- Create, rename, edit and delete documents (bold, italic, underline, H1/H2, bullet and numbered lists)
-- Autosave with a Saved / Saving / Error indicator
-- Import `.txt`, `.md` and `.docx` files as new documents
-- Share a document with another user as **viewer** or **editor**
-- "My documents" / "Shared with me" views
-- Seeded users with a cookie-based "pick a user" login (no real auth)
+- Seeded users with a "pick a user" login, a user switcher in the header and Log out (mock auth, see [ARCHITECTURE.md](./ARCHITECTURE.md))
+- "My documents" / "Shared with me" lists with owner, last-updated time and an Owner / Shared · Editor / Shared · Viewer badge
+- Create a document, rename it inline (Enter or blur; Esc cancels)
+- Rich-text editor: bold, italic, underline, Heading 1/2, bullet and numbered lists, with keyboard shortcuts and a toolbar that shows the active formatting
+- Autosave (about 0.8 s after you stop typing) with a Saved / Saving… / Unsaved changes / Couldn't save · Retry indicator; one save in flight at a time, flushed on blur and when the tab is hidden, and a "leave page?" warning only while there are unsaved changes
+- Roles enforced on the server and reflected in the UI: owners and editors can edit; viewers get a read-only editor with a "View only" badge; documents you can't access show a "not found" page
+- Documents API (documents + shares) used by the UI; the share API is ready but has no UI yet
+
+**Not built yet**
+
+- Share dialog (the API exists), file import (`.txt`, `.md`, `.docx`; the Import button is disabled), deleting a document from the UI
 
 ## Stack
 

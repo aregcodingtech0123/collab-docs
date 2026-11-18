@@ -58,7 +58,42 @@ See the table in [README.md](./README.md#api-overview). Every handler: authentic
 authorize (`requireDocumentAccess`) → query → respond; any thrown error goes through
 `handleApiError`, which maps `ApiError` / `ZodError` to JSON and hides unknown errors as a 500.
 
+## Pages and rendering
+
+- `/documents` is a server component that calls the same `listDocuments()` as the API (no
+  self-fetch). `/documents/[id]` is a server component that loads the document through
+  `requireDocumentAccess()` and hands it to a client `Editor`.
+- Signed out → redirect to `/login` (checked in the layout **and** in each page, because layouts
+  are not re-rendered on every navigation). Missing document, malformed id and "no access" all go
+  through `notFound()`, so they look identical.
+- `getCurrentUser()` is wrapped in React `cache()`: the layout, the page and `generateMetadata`
+  share one user lookup per request.
+- **Known framework behaviour:** in this Next version, a `notFound()` thrown by a dynamic page
+  responds with HTTP 404 but the server HTML is Next's client-render shell
+  (`<html id="__next_error__">`); the not-found UI, with the app header, appears once JS runs. I
+  reproduced it with a bare `notFound()` page, so it is not caused by this app. Adding a
+  `loading.tsx` renders the not-found HTML on the server but makes the status 200, so I kept the
+  404 status and did not add one.
+
 ## Editor and autosave
+
+- **Editor:** TipTap with one shared extension list (`src/lib/tiptap.ts`), `immediatelyRender:
+  false` to avoid hydration mismatches. Viewers get `editable: false`, no toolbar and no autosave.
+- **Autosave** (`src/lib/autosave.ts`, a plain class so it can be unit-tested with fake timers):
+  - the editor only calls `markDirty()` on real edits (TipTap's `onUpdate` does not fire for the
+    initial content), so nothing is saved on load;
+  - debounced 800 ms; flushed on blur and when the tab is hidden; `beforeunload` warns only while
+    `hasUnsaved()`;
+  - **one request in flight**: edits made meanwhile set a dirty flag, and when the request ends
+    the loop reads the editor's *current* content and sends it. Older content therefore cannot
+    overwrite newer content, and there is never more than one PATCH at a time;
+  - a save is skipped when the content equals what was last saved;
+  - failures: network/5xx/400 keep the edits and offer Retry; 401, 403 and 404 stop autosaving and
+    show a clear message (signed out / no longer permitted / no longer available).
+- **Title** is saved separately from content (`RenameTitle`), on blur or Enter. The two PATCHes
+  touch different columns, so they cannot clobber each other.
+- **Last write wins:** two people editing the same document at the same time can overwrite each
+  other's changes (there is no merge). Autosave only guarantees a single client's ordering.
 
 ## File import
 
