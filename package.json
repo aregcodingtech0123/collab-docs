@@ -15,8 +15,6 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
-    "@neon/config": "^1.14.3",
-    "@neon/env": "^2.1.6",
     "@neondatabase/serverless": "^1.2.1",
     "@tiptap/extension-placeholder": "^3.34.0",
     "@tiptap/extension-underline": "^3.34.0",

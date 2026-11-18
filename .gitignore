@@ -46,4 +46,3 @@ next-env.d.ts
 # editor / OS
 Thumbs.db
 .idea/
-.neon
