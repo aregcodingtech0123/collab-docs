@@ -27,6 +27,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Only the routes that have dynamic segments.
-  matcher: ["/api/documents/:path*", "/documents/:path*"],
+  // Only the routes that have a dynamic [id] segment. /api/documents/import is excluded on
+  // purpose: Next buffers the request body (up to 10 MB) of every route the proxy matches,
+  // which would defeat the streaming size limit in lib/import/upload.ts.
+  matcher: ["/documents/:id", "/api/documents/:id((?!import$)[^/]+)", "/api/documents/:id/shares"],
 };

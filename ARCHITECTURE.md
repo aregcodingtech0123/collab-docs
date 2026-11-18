@@ -158,7 +158,9 @@ now fixed and covered by unit tests:
 - **Absurd nesting** (hundreds or thousands of levels) was accepted. Content is now limited to 64
   levels of nesting; the walk is iterative so a deep payload cannot overflow the stack.
 - **A malformed percent-escape in a dynamic URL segment** (`/documents/%E0%A4%A`) made Next throw
-  a 500 before any of our code ran. `src/proxy.ts` (Next's pre-routing hook) answers 400.
+  a 500 before any of our code ran. `src/proxy.ts` (Next's pre-routing hook) answers 400. Its
+  matcher covers only the `[id]` routes: Next buffers the body of every request a proxy matches, so
+  the upload route is excluded to keep its streaming size limit meaningful.
 
 Unexpected server errors are logged on the server and answered with a generic
 `{"error":{"code":"internal_error","message":"Something went wrong"}}`; nothing about the
