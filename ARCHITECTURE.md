@@ -146,15 +146,73 @@ insert.
   Vercel the function memory limit and timeout are the backstop. A production version should
   check the decompressed size before parsing.
 
-## Key decisions and trade-offs
+## Robustness: bad input is never a 500
 
-- **Cache Components off.** Every page depends on the per-user cookie, so prerendering/caching
-  has nothing to offer and only adds `<Suspense>` constraints.
-- **`@neondatabase/serverless` over HTTP + Drizzle.** Fits Vercel's serverless model with no
-  connection management. Trade-off: no interactive transactions, so writes are single statements
-  (upserts) or `db.batch()`.
-- **Mock auth** (see above) to keep the focus on ownership, sharing and permission enforcement.
-- **Last write wins** for content saves; there is no real-time collaboration or conflict
-  resolution.
+A fuzz suite (`scripts/e2e/api-fuzz.mjs`, 281 cases) sends broken JSON, wrong content types,
+oversized and odd values, strange ids and cookies to every route. It found three real problems,
+now fixed and covered by unit tests:
+
+- **Text Postgres cannot store** (a NUL character, an unpaired surrogate) in a title or inside
+  document content made the insert throw, which was a 500. `lib/jsonSafety.ts` walks the parsed
+  JSON and the schemas reject it with a readable 400.
+- **Absurd nesting** (hundreds or thousands of levels) was accepted. Content is now limited to 64
+  levels of nesting; the walk is iterative so a deep payload cannot overflow the stack.
+- **A malformed percent-escape in a dynamic URL segment** (`/documents/%E0%A4%A`) made Next throw
+  a 500 before any of our code ran. `src/proxy.ts` (Next's pre-routing hook) answers 400.
+
+Unexpected server errors are logged on the server and answered with a generic
+`{"error":{"code":"internal_error","message":"Something went wrong"}}`; nothing about the
+database, paths or stack traces reaches a client. A missing `DATABASE_URL` is the typical
+example: the log says exactly what to set, the browser sees nothing specific.
+
+## Testing strategy
+
+- **Unit tests (`npm test`, ~300):** the pure parts: permissions, validation, JSON safety, the
+  autosave state machine (fake timers), the import pipeline (real `.docx` files built in a
+  helper), upload limits, share helpers, relative times, seed data against the real editor schema.
+  No database, no browser.
+- **End-to-end (`npm run e2e:api`, `npm run e2e:browser`, optional):** the real app. API suites
+  cover auth, documents, shares, pages, import and the fuzz; browser suites drive Chrome or Edge
+  through the editor, autosave failure paths, import, the share lifecycle across three users,
+  keyboard/focus behaviour, delete, responsive layouts (390 and 768 px) and titles. They mutate
+  data, so they refuse non-local targets and re-seed afterwards.
+- Not covered by automated tests: the UI components in isolation (no component-test setup), and
+  anything needing a screen reader. The accessibility behaviour was checked in a real browser.
+
+## Deploy notes
+
+- `vercel.json` sets the function region to `fra1` to sit next to the Frankfurt Neon database.
+- `next build` never touches the database (the client is created lazily), so it works with no
+  `DATABASE_URL`. The variable is read at request time.
+- The session cookie is `Secure` when `NODE_ENV=production` (which Vercel sets), `HttpOnly`,
+  `SameSite=Lax`. Nothing in `src` assumes a host or port.
+- Migrations and seed are run by hand against the production database (see the README); they
+  are not part of the Vercel build.
+
+## Deliberate scope cuts and trade-offs
+
+Everything below was a conscious decision for a time-boxed exercise, not an oversight.
+
+| Cut / decision | What it means | What a production version would do |
+| --- | --- | --- |
+| **Mock authentication** | The session is a cookie holding a user id: no password, no signature, no server-side session. Spoofable by anyone who knows an id. | Real auth (passwords/passkeys, magic link or OAuth) with an opaque, revocable session. See "Deliberate cuts" above. |
+| **Last write wins, no real-time** | Two people editing at once overwrite each other; autosave only protects a single client's ordering. | CRDT/OT (Yjs, TipTap Collaboration) over WebSockets, or at least optimistic concurrency with a version number and a merge or conflict prompt. |
+| **No version history** | Every save replaces the content; there is no undo across sessions and no restore. | Store revisions (periodic snapshots or an event log) and a history UI. |
+| **Schema-restricted editor** | Only headings 1-2, bold, italic, underline, lists, line breaks. The same schema is used for typing, pasting and import, so everything else is dropped (images, tables, links, code, quotes, ...). | Add the nodes people actually need, one at a time; the import path picks them up automatically. |
+| **No zip-bomb guard on `.docx`** | A small crafted `.docx` could expand to a lot of memory while being read. Backstop: the 2 MB upload cap and the function's memory/time limits. | Inspect the archive's declared uncompressed sizes before parsing, and parse in a worker with a memory cap. |
+| **Import limits** | 2 MB file and about 1 MB of resulting text; no images or tables. | Stream-parse large files, support images via object storage, import tables. |
+| **No CSRF token, no rate limiting** | `SameSite=Lax` blocks the common cross-site posts; the API can still be hammered. | CSRF token or Origin checks on state-changing routes; per-user/IP rate limits. |
+| **Whole user directory is visible** | The login page and share dialog list every user's email. | Invitation by email, org-scoped search. |
+| **Single-line title input** | A very long title is clipped in the field (truncated in lists). | An auto-growing textarea. |
+| **`neon-http` driver, no interactive transactions** | Writes are single statements (upserts) or `db.batch()`. Fits serverless with no connection management. | `pg` + Vercel Fluid pooling if multi-statement transactions become necessary. |
+| **Cache Components off** | Every page depends on the per-user cookie, so prerendering/caching has nothing to offer. | Revisit if public or shared-cacheable pages appear. |
+| **Next 16 `notFound()` response shape** | The 404 status is correct, but the server HTML is Next's client-render shell; the not-found UI appears once JS runs. | Upgrade to a Next version where it is server-rendered, or accept it (it is a framework behaviour, reproduced with a bare page). |
 
 ## What I would do with more time
+
+- Real authentication and real-time collaboration (the two biggest gaps above).
+- Version history with restore, and comments.
+- Component-level tests for the dialogs and the editor toolbar, and an automated accessibility
+  audit (axe) in the browser suite.
+- A CI workflow running lint, type check, unit tests and the API suite against a throwaway Neon branch.
+- Image support (object storage) and tables in the editor and in import.
