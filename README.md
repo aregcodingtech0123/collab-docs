@@ -14,11 +14,26 @@
 - Rich-text editor: bold, italic, underline, Heading 1/2, bullet and numbered lists, with keyboard shortcuts and a toolbar that shows the active formatting
 - Autosave (about 0.8 s after you stop typing) with a Saved / Saving… / Unsaved changes / Couldn't save · Retry indicator; one save in flight at a time, flushed on blur and when the tab is hidden, and a "leave page?" warning only while there are unsaved changes
 - Roles enforced on the server and reflected in the UI: owners and editors can edit; viewers get a read-only editor with a "View only" badge; documents you can't access show a "not found" page
-- Documents API (documents + shares) used by the UI; the share API is ready but has no UI yet
+- **Sharing:** owners get a **Share** button in the editor header. The dialog lists who has access (change Viewer/Editor, or Remove), and adds people by picking from the user list or typing an email. It updates in place, is keyboard accessible (focus is trapped, Esc closes, focus returns to the button) and shows readable errors. Editors and viewers never see the button.
+- **Import:** create a new document from a `.txt`, `.md` or `.docx` file (see [File import](#file-import))
+- Documents + shares API used by the UI
 
 **Not built yet**
 
-- Share dialog (the API exists), file import (`.txt`, `.md`, `.docx`; the Import button is disabled), deleting a document from the UI
+- Deleting a document from the UI (the API exists), live collaboration (concurrent edits are last-write-wins)
+
+## File import
+
+Use **Import file** on the documents page, or `POST /api/documents/import` (multipart, field `file`).
+
+- **Supported types:** `.txt`, `.md`, `.docx` (extension is matched case-insensitively). Anything else is rejected with "Unsupported file type. Use .txt, .md or .docx."
+- **Size limit:** **2 MB** per file (larger uploads get HTTP 413). The resulting document must also fit the 1 MB document-content limit, so a 2 MB plain-text file can still be refused with a readable message.
+- The new document is owned by you; its title is the file name without the extension (max 200 characters, "Imported document" if the name is empty).
+- Empty or whitespace-only files, binary files renamed to `.txt`/`.md`, and corrupt `.docx` files get a readable 400, never a server error.
+
+**What is imported:** paragraphs; Heading 1 and 2 (deeper headings become Heading 2); bold, italic, underline; bullet and numbered lists (nested ones included); line breaks. For `.txt`, a blank line starts a new paragraph and a single newline becomes a line break.
+
+**What is NOT imported:** images (including embedded ones and their alt text), tables (the cell text is kept as plain paragraphs), links (the link text is kept, the address is dropped), code blocks and inline code, block quotes, horizontal rules, strikethrough, text colour/size/fonts, comments, tracked changes, headers/footers and footnotes. Markdown/HTML such as `<script>`, `<style>` or `<iframe>` is dropped, not executed or stored: the editor schema simply has no place for it (see [ARCHITECTURE.md](./ARCHITECTURE.md#file-import)).
 
 ## Stack
 
@@ -86,10 +101,11 @@ Authentication is the mock session cookie set by `POST /api/auth/login`.
 | `GET /api/documents/:id/shares`        | Who the document is shared with                          | owner           |
 | `POST /api/documents/:id/shares` `{ email, permission }` | Share, or change an existing share (`viewer` / `editor`) | owner  |
 | `DELETE /api/documents/:id/shares` `{ userId }` | Remove a share (204)                            | owner           |
+| `POST /api/documents/import` (multipart `file`) | Create a document from a `.txt`/`.md`/`.docx` (201 `{ document: { id, title } }`) | signed in |
 
 Status codes: `401` not signed in · `404` document missing **or** you have no access at all
 (existence is not leaked) · `403` you can see it but lack the needed permission · `400` invalid
-input (the message says which field) · `501` endpoints not built yet (`/api/documents/import`).
+input (the message says which field) · `413` uploaded file over 2 MB.
 
 ## Scripts
 

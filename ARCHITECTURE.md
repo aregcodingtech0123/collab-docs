@@ -95,7 +95,56 @@ authorize (`requireDocumentAccess`) → query → respond; any thrown error goes
 - **Last write wins:** two people editing the same document at the same time can overwrite each
   other's changes (there is no merge). Autosave only guarantees a single client's ordering.
 
+## Sharing
+
+- **Model:** a share is one row `(document, user, permission)`, with `permission` = `viewer` or
+  `editor`; the owner is `documents.owner_id` and never has a share row. Sharing again with the
+  same person is an upsert, so there is at most one row per person per document.
+- **Who can manage it:** only the owner. The API enforces it (`requireDocumentAccess(..., "share")`:
+  403 for editors/viewers, 404 for strangers); the UI only hides the Share button, it is not the
+  security boundary.
+- **Dialog (`ShareDialog`)** talks to the same API as everything else and keeps its own list in
+  state, so every change shows up immediately and nothing reloads the page. The "who can I add"
+  list is computed in a pure function (`lib/shares.ts`: everyone except the owner and people already
+  shared with); typing an email still goes through the server, which rejects the owner and unknown
+  users, and the UI turns those errors into sentences (`describeShareError`).
+- **Revocation** takes effect on the next request: the removed person's open editor gets a 403/404
+  from autosave and says so; reloading shows the not-found page.
+- **Accessibility:** `ui/Dialog` is the native `<dialog>` opened with `showModal()` (page behind
+  is inert, Esc closes, `aria-labelledby`), plus explicit Tab/Shift+Tab wrap-around because a
+  modal dialog alone still lets Tab escape to the browser UI, and focus is returned to the opener.
+
 ## File import
+
+Pipeline (`src/lib/import/`): `upload.ts` (read the multipart body) → `parseImport()` in
+`index.ts` (type, size, emptiness) → a parser → `tiptapDocSchema` (the same check PATCH uses) →
+insert.
+
+- **Parsers:** `.txt` is converted directly (blank line = paragraph, newline = hard break).
+  `.md` goes through `marked` and `.docx` through `mammoth` (with underline mapped and images
+  not inlined); both produce **HTML**, which is turned into TipTap JSON by `generateJSON()` from
+  `@tiptap/html/server` using the **shared extension list** (`src/lib/tiptap.ts`).
+- **Sanitization is the schema, not a regex.** The editor schema has exactly: paragraph, heading
+  1-2, bullet/ordered list, list item, hard break, bold, italic, underline. HTML that has no
+  place in that schema (script, style, iframe, img, table, links, code, quotes, ...) cannot be
+  represented and is dropped by ProseMirror's parser; the editor and the importer can never
+  disagree about what is allowed because they use the same extensions. (This meant switching off
+  StarterKit's link, code, code block, quote, rule and strike extensions, which the toolbar never
+  offered.) Headings 3-6 are given a parse rule that maps them to level 2 instead of losing
+  them. Empty paragraphs left behind by dropped content (an image on its own line) are removed.
+- **Never a 500 for bad input:** unsupported type, empty/whitespace-only, binary data, corrupt
+  `.docx` (random bytes, truncated, or a ZIP that is not Word), "no importable text" (e.g. a file
+  that is only an image) and over-limit content are all `ApiError` 400/413 with a message written
+  for users.
+- **Upload size:** 2 MB per file. `readUploadedFile` refuses by `Content-Length` before reading
+  and otherwise counts bytes while streaming. A moderately oversized upload (up to 16 MB) is read
+  and *discarded* so the client gets a clean 413 instead of a connection reset (found while
+  testing: hanging up mid-upload made the next request on the same connection fail); anything
+  bigger is cut off immediately and the client may just see the connection close.
+- **Known limits:** a `.docx` is a ZIP, so a deliberately crafted "zip bomb" under 2 MB could
+  expand to a lot of memory while mammoth reads it. There is no decompressed-size guard; on
+  Vercel the function memory limit and timeout are the backstop. A production version should
+  check the decompressed size before parsing.
 
 ## Key decisions and trade-offs
 
