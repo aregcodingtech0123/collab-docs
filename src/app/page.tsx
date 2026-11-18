@@ -1,8 +1,13 @@
-// Home: redirects to /documents when signed in, otherwise /login.
-// TODO: check the user cookie (behind <Suspense>, see lib/auth.ts) and redirect accordingly.
+// Home: redirects to /documents when a user cookie is present, otherwise /login.
+//
+// This only checks that the cookie exists. Pages that need a user validate it
+// (getCurrentUser) and redirect to /login themselves if it is stale/unknown.
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { USER_COOKIE } from "@/lib/auth";
 
-export default function HomePage() {
-  redirect("/login");
+export default async function HomePage() {
+  const cookieStore = await cookies();
+  redirect(cookieStore.has(USER_COOKIE) ? "/documents" : "/login");
 }

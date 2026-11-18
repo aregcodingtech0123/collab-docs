@@ -1,5 +1,5 @@
 // Documents list: "My documents" and "Shared with me".
-// TODO: load the current user's documents (behind <Suspense>) and render DocumentList.
+// TODO: load the current user's documents and render DocumentList.
 
 import DocumentList from "@/components/documents/DocumentList";
 import ImportButton from "@/components/documents/ImportButton";

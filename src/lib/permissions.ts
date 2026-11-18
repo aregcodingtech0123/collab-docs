@@ -28,7 +28,9 @@ export function getRole({ userId, ownerId, shares }: AccessContext): Role {
     // The DB enforces one share per (document, user), but stay safe if a caller
     // passes duplicates: the most permissive grant wins.
     if (share.permission === "editor") return "editor";
-    role = "viewer";
+    // Only an explicit "viewer" grants anything. Fail closed on unexpected
+    // values (bad data, a new enum member not handled here yet, ...).
+    if (share.permission === "viewer") role = "viewer";
   }
   return role;
 }

@@ -27,7 +27,8 @@ Everything runs on free tiers (Vercel Hobby, Neon Free). No paid services or API
 
 ## Setup
 
-Requires Node.js 20.12+ and npm.
+Requires Node.js 20.12 or newer (Node 22 LTS recommended) and npm. This is enforced
+through the `engines` field in `package.json`.
 
 ```bash
 npm install

@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Cache Components / Partial Prefetching are intentionally off: every page here
+  // depends on the per-user cookie, so there is nothing useful to prerender or cache.
   turbopack: {
     rules: {
       "*.css": {
