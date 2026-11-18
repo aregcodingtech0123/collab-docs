@@ -16,8 +16,10 @@ export function getDb(): Database {
   if (!instance) {
     const url = process.env.DATABASE_URL;
     if (!url) {
+      // This text goes to the SERVER LOG only: route handlers answer clients with a generic 500.
       throw new Error(
-        "DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.",
+        "DATABASE_URL is not set. Locally: copy .env.example to .env.local and set it. " +
+          "On Vercel: add it under Project Settings > Environment Variables and redeploy.",
       );
     }
     instance = drizzle(neon(url), { schema });
