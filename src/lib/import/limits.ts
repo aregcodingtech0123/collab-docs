@@ -10,8 +10,8 @@ export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 export const FALLBACK_TITLE = "Imported document";
 export const MAX_TITLE_CHARS = 200;
 
-/** Shown in the UI and in error messages. */
-export const IMPORT_LIMITS_TEXT = ".txt, .md and .docx files up to 2 MB";
+/** Shown in the UI next to the Import button. */
+export const IMPORT_LIMITS_TEXT = ".txt, .md and .docx files up to 2 MB. Very large text (over about 1 MB) is rejected.";
 export const UNSUPPORTED_TYPE_MESSAGE = "Unsupported file type. Use .txt, .md or .docx.";
 
 /** Last path segment (browsers send a bare name, but never trust that). */

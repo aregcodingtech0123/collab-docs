@@ -308,10 +308,28 @@ describe("parseImport: size limit", () => {
     expect(content.content).toHaveLength(1500);
   });
 
-  it("a file within 2 MB whose content would exceed the 1 MB document limit gets a readable 400", async () => {
+  it("a file within 2 MB whose text exceeds the 1 MB document limit gets a clear, specific 400", async () => {
     const err = await failure(parseImport("huge.txt", new Uint8Array(MAX_IMPORT_BYTES).fill(97)));
     expect(err.status).toBe(400);
-    expect(err.message).toMatch(/too large/i);
+    expect(err.code).toBe("content_too_large");
+    expect(err.message).toMatch(/text in this file is too large for one document/);
+    expect(err.message).toMatch(/1 MB/); // states the limit
+    expect(err.message).toMatch(/Split the file/); // and what to do about it
+  });
+
+  it("applies the same rule to markdown, and just under the limit still imports", async () => {
+    expect((await failure(parseImport("huge.md", new Uint8Array(MAX_IMPORT_BYTES).fill(97)))).code).toBe("content_too_large");
+    // ~0.9 MB of text: the JSON overhead stays under the 1 MB document limit
+    const ok = await parseImport("big.txt", new Uint8Array(900 * 1024).fill(97));
+    expect(ok.content.content).toHaveLength(1);
+  });
+
+  it("the file-size and the text-size limits are described separately and consistently", async () => {
+    const tooBig = await failure(parseImport("big.txt", new Uint8Array(MAX_IMPORT_BYTES + 1)));
+    expect(tooBig.status).toBe(413);
+    expect(tooBig.message).toMatch(/file is too large.*2 MB/);
+    const tooMuchText = await failure(parseImport("dense.txt", new Uint8Array(MAX_IMPORT_BYTES).fill(97)));
+    expect(tooMuchText.message).not.toBe(tooBig.message);
   });
 });
 

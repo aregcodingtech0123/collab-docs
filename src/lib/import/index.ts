@@ -15,7 +15,7 @@ import {
 import { parseDocx } from "@/lib/import/parseDocx";
 import { parseMarkdown } from "@/lib/import/parseMarkdown";
 import { parseTxt } from "@/lib/import/parseTxt";
-import { tiptapDocSchema } from "@/lib/validation";
+import { MAX_CONTENT_BYTES, tiptapDocSchema } from "@/lib/validation";
 import type { TipTapDoc } from "@/types";
 
 export * from "@/lib/import/limits";
@@ -28,6 +28,8 @@ export interface ImportResult {
 const EMPTY_MESSAGE = "The file is empty. Choose a file that contains some text.";
 const NO_TEXT_MESSAGE = "No importable text was found in this file.";
 const NOT_TEXT_MESSAGE = "This file doesn't look like a text file.";
+const CONTENT_TOO_LARGE_MESSAGE =
+  "The text in this file is too large for one document (the limit is about 1 MB of text, even though files up to 2 MB are accepted). Split the file into smaller parts and import them separately.";
 const BAD_DOCX_MESSAGE = "This .docx file couldn't be read. Make sure it's a valid Word document.";
 
 function decodeText(data: Uint8Array): string {
@@ -72,6 +74,12 @@ export async function parseImport(filename: string, data: Uint8Array): Promise<I
 
   // Parsing can leave nothing behind, e.g. a markdown file that is only an image.
   if (!hasText(content)) throw new ApiError(400, "no_text", NO_TEXT_MESSAGE);
+
+  // A file within the 2 MB limit can still produce more than the 1 MB a document may hold
+  // (formatting adds JSON overhead). Say so explicitly instead of a generic validation error.
+  if (new TextEncoder().encode(JSON.stringify(content)).length > MAX_CONTENT_BYTES) {
+    throw new ApiError(400, "content_too_large", CONTENT_TOO_LARGE_MESSAGE);
+  }
 
   try {
     content = tiptapDocSchema.parse(content) as unknown as TipTapDoc;
