@@ -1,8 +1,13 @@
-// POST /api/auth/logout: clear the user cookie.
+// POST /api/auth/logout: clear the session cookie (always succeeds).
 
-import { notImplemented } from "@/lib/errors";
+import { clearSessionCookie } from "@/lib/auth";
+import { handleApiError } from "@/lib/errors";
 
 export async function POST() {
-  // TODO: implement
-  return notImplemented();
+  try {
+    await clearSessionCookie();
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    return handleApiError(err);
+  }
 }

@@ -1,8 +1,13 @@
-// GET /api/auth/me: return the current user (or 401).
+// GET /api/auth/me: the current user, or 401.
 
-import { notImplemented } from "@/lib/errors";
+import { requireUser } from "@/lib/auth";
+import { handleApiError } from "@/lib/errors";
 
 export async function GET() {
-  // TODO: implement
-  return notImplemented();
+  try {
+    const user = await requireUser();
+    return Response.json({ user });
+  } catch (err) {
+    return handleApiError(err);
+  }
 }
