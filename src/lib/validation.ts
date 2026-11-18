@@ -3,8 +3,9 @@
 import { z } from "zod";
 import { SHARE_PERMISSIONS } from "@/types";
 import { ApiError } from "@/lib/errors";
+import { MAX_TITLE_LENGTH } from "@/lib/title";
 
-export const MAX_TITLE_LENGTH = 200;
+export { MAX_TITLE_LENGTH };
 /** Max serialized size of a document's content (bytes of its JSON). */
 export const MAX_CONTENT_BYTES = 1024 * 1024;
 /** Hard cap on any request body we are willing to read (content + envelope). */

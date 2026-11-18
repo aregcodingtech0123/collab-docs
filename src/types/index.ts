@@ -27,11 +27,12 @@ export interface TipTapDoc extends TipTapNode {
   type: "doc";
 }
 
+/** One row of the documents list (no content). */
 export interface DocumentSummary {
   id: string;
   title: string;
-  ownerId: string;
-  updatedAt: string;
+  updatedAt: Date | string;
+  owner: { id: string; name: string };
   /** The current user's role on this document. */
   role: Exclude<Role, "none">;
 }
@@ -40,8 +41,6 @@ export interface DocumentShare {
   userId: string;
   permission: SharePermission;
 }
-
-export type SaveState = "saved" | "saving" | "error";
 
 /** Shape of every JSON error returned by the API. */
 export interface ApiErrorBody {

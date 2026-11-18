@@ -9,8 +9,10 @@
 // What we do still guarantee: the user is looked up in the DB on every request,
 // so a cookie for a user that does not exist (or was deleted) is simply "signed out".
 
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { cache } from "react";
 import { getDb, schema } from "@/db";
 import { ApiError } from "@/lib/errors";
 import { idSchema } from "@/lib/validation";
@@ -30,8 +32,19 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   return user ?? null;
 }
 
-/** The signed-in user, or null if the cookie is missing, malformed or points at no user. */
-export async function getCurrentUser(): Promise<User | null> {
+/** All users, for the login page, the user switcher and the share dialog. */
+export async function listUsers(): Promise<User[]> {
+  return getDb()
+    .select({ id: schema.users.id, name: schema.users.name, email: schema.users.email })
+    .from(schema.users)
+    .orderBy(asc(schema.users.name), asc(schema.users.email));
+}
+
+/**
+ * The signed-in user, or null if the cookie is missing, malformed or points at no user.
+ * cache(): one DB lookup per request, even when a layout, a page and generateMetadata all ask.
+ */
+export const getCurrentUser = cache(async (): Promise<User | null> => {
   const store = await cookies();
   const raw = store.get(USER_COOKIE)?.value;
   if (!raw) return null;
@@ -46,12 +59,19 @@ export async function getCurrentUser(): Promise<User | null> {
     .where(eq(schema.users.id, parsed.data))
     .limit(1);
   return user ?? null;
-}
+});
 
-/** Like getCurrentUser(), but throws ApiError 401 when signed out. */
+/** Like getCurrentUser(), but throws ApiError 401 when signed out. For route handlers. */
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) throw new ApiError(401, "unauthorized", "You need to sign in first");
+  return user;
+}
+
+/** For pages and layouts: redirect to /login when signed out. */
+export async function requireUserOrRedirect(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
   return user;
 }
 

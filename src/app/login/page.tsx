@@ -1,17 +1,13 @@
 // Mock login: lists the seeded users as buttons (see components/LoginForm.tsx).
 
-import { asc } from "drizzle-orm";
 import { connection } from "next/server";
-import { getDb, schema } from "@/db";
 import LoginForm from "@/components/LoginForm";
+import { listUsers } from "@/lib/auth";
 
 export default async function LoginPage() {
   // Read the users on every request, not at build time.
   await connection();
-  const users = await getDb()
-    .select({ id: schema.users.id, name: schema.users.name, email: schema.users.email })
-    .from(schema.users)
-    .orderBy(asc(schema.users.name));
+  const users = await listUsers();
 
   return (
     <main className="mx-auto w-full max-w-md px-6 py-16">

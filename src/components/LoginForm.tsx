@@ -55,7 +55,7 @@ export default function LoginForm({ users }: { users: LoginUser[] }) {
               type="button"
               onClick={() => signIn(user)}
               disabled={pending !== null}
-              className="flex w-full items-center justify-between rounded-lg border border-zinc-300 px-4 py-3 text-left transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              className="flex w-full items-center justify-between rounded-lg border border-zinc-300 px-4 py-3 text-left transition hover:bg-zinc-50 disabled:opacity-60"
             >
               <span className="font-medium">
                 {pending === user.id ? "Signing in…" : `Continue as ${user.name}`}

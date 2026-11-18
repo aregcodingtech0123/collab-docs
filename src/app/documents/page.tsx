@@ -1,30 +1,38 @@
-// Documents list: "My documents" and "Shared with me".
-// TODO: load the current user's documents and render DocumentList.
+// Documents list: "My documents" and "Shared with me". Rendered on the server,
+// using the same query as GET /api/documents (listDocuments).
 
 import DocumentList from "@/components/documents/DocumentList";
 import ImportButton from "@/components/documents/ImportButton";
 import NewDocumentButton from "@/components/documents/NewDocumentButton";
-import UserSwitcher from "@/components/UserSwitcher";
+import { requireUserOrRedirect } from "@/lib/auth";
+import { listDocuments } from "@/lib/documents";
 
-export default function DocumentsPage() {
+export const metadata = { title: "Documents · Collab Docs" };
+
+export default async function DocumentsPage() {
+  const user = await requireUserOrRedirect();
+  const { owned, shared } = await listDocuments(user.id);
+
   return (
-    <main className="mx-auto w-full max-w-4xl p-8">
-      <header className="flex items-center justify-between gap-4">
+    <main className="mx-auto w-full max-w-5xl px-4 py-8">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl font-semibold">Documents</h1>
-        <div className="flex items-center gap-2">
-          <NewDocumentButton />
+        <div className="flex items-start gap-2">
           <ImportButton />
-          <UserSwitcher />
+          <NewDocumentButton />
         </div>
-      </header>
-      <section className="mt-8">
-        <h2 className="text-lg font-medium">My documents</h2>
-        <DocumentList documents={[]} />
-      </section>
-      <section className="mt-8">
-        <h2 className="text-lg font-medium">Shared with me</h2>
-        <DocumentList documents={[]} />
-      </section>
+      </div>
+
+      <DocumentList
+        title="My documents"
+        documents={owned}
+        emptyMessage="You don't have any documents yet. Create one with “New document”."
+      />
+      <DocumentList
+        title="Shared with me"
+        documents={shared}
+        emptyMessage="Nothing has been shared with you yet. Documents other people share with you will show up here."
+      />
     </main>
   );
 }
